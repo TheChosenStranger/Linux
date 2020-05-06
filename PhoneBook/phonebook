@@ -1,0 +1,158 @@
+#!binbash
+
+function erase
+{
+	search=($(grep -wno #Contacts are saved here phonebook   cut -d'' -f 1))
+	start=${search[2]}
+	contacts=$(cat phonebook  wc -l)
+	while	[ $contacts -gt $start ]
+	do
+		sed -i '$d' phonebook
+		contacts=$(cat phonebook  wc -l)
+	done
+	echo Contacts erased successfully
+}
+
+function delete
+{
+	read -p Enter contact name   name
+	delete=$(grep -wno # ${name} phonebook   cut -d'' -f 1 wc -w)
+	if [ $delete -eq 1 ]
+		then
+		delete=$(grep -wno # ${name} phonebook cut -d'' -f 1)
+		sed -i ${delete}d phonebook
+		echo Contact deleted successfully
+	elif [ $delete -gt 1 ]
+		then
+		grep -wn # ${name} phonebook  
+		echo [$delete] ($name)'s were found Please choose one using line number
+		options=($(grep -wno # ${name} phonebook  cut -d'' -f 1))
+		read user_in
+		correct=0
+		for option in ${options[@]}
+			do
+			if [ $user_in -eq $option ]
+				then
+				correct=1
+				break
+			fi
+		done
+		if [ $correct == 1 ]
+			then
+			sed -i ${user_in}d phonebook
+			echo Contact deleted successfully
+		else
+			echo Wrong line number		
+		fi
+	else
+
+		echo Contact doesn't exist
+	fi
+}
+
+function search
+{
+	read -p Enter contact name   name
+	search=$(grep -w # $name phonebook)
+	if [ -z $search ]
+		then
+		echo Contact doesn't exist
+	else
+		echo $search
+	fi
+}
+
+function insert
+{
+	yes=y	
+	while [ $yes == y ]
+	do
+		read -p Enter contact name   name
+		search=$(grep -w # $name phonebook)
+		if	! [ -z $search ]
+			then
+			echo Name already exists please try again
+		else
+			yes=n			
+		fi
+	done
+	echo -n # $name  phonebook
+	yes=y
+	while [ $yes == 'y' ]
+		do
+		read -p Enter contact number   number
+		if ! [[ $number =~ ^[0-9]+$ ]]
+	    then
+	        echo Contact number includes numbers only
+		else
+			echo -n  $number  phonebook
+			read -p Add another number(y,n)   yes
+		fi
+	done
+
+	echo    phonebook
+}
+
+function view 
+{
+	contacts=$(cat phonebook  wc -l)
+	search=($(grep -wno #Contacts are saved here phonebook   cut -d'' -f 1))
+	counter=${search[2]}
+	let counter++
+		counter=$counter
+	while	[ $counter -le $contacts ]
+	do
+		sed -n ${counter}p phonebook
+		let counter++
+		counter=$counter
+	done
+}
+
+function phone_book
+{
+	if [ $1 == '-i' ]
+		then
+		insert
+	elif [ $1 == '-v' ]
+		then
+		view
+	elif [ $1 == '-s' ]
+		then
+		search
+	elif [ $1 == '-e' ]
+		then
+		erase
+	elif [ $1 == '-d' ]
+		then
+		delete
+	else
+		echo Wrong option
+	fi
+
+}
+
+clear
+
+
+if [ $# == 0 ]
+	then
+	echo 'Please choose an option
+	-i Insert new contact name and number(s).
+	-v View all saved contacts details.
+	-s Search by contact name.
+	-e Delete all records.
+	-d Delete only one contact by name.'
+
+elif [ $# == 1 ]
+	then
+	phone_book $1
+elif [ $#  1 ]
+	then
+	echo Multiple options is not supported
+fi
+
+
+############Contacts are saved here##############
+# FirstOne 01111111111
+# Someone 01234567890
+# Another 01234567891

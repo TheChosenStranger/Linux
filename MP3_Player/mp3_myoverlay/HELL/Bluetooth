@@ -1,0 +1,76 @@
+#!/bin/bash
+#Initializing bluetooth
+modprobe hci_uart
+sleep 3
+hciattach /dev/ttyAMA0 bcm43xx 115200 noflow -
+sleep 3
+/usr/libexec/bluetooth/bluetoothd &
+sleep 3
+hciconfig hci0 up
+sleep 3
+#Files used in the script#
+BLUETOOTH_LOG_FILE="BT.log"
+BTDEVICES="BTdev.txt"
+BLUETOOTH_AVAILABLE="BTAvail.cfg"
+#Deleting old files#
+test -f ${BLUETOOTH_LOG_FILE} && rm ${BLUETOOTH_LOG_FILE}
+test -f ${BTDEVICES} && rm ${BTDEVICES}
+test -f ${BLUETOOTH_AVAILABLE} && rm ${BLUETOOTH_AVAILABLE}
+while true ;
+do
+	#starting the BT search#
+	service bluetooth restart
+	coproc bluetoothctl
+	echo -e 'power on' >&${COPROC[1]}
+	sleep 1
+	echo -e 'scan on' >&${COPROC[1]}
+	sleep 15
+	echo -e 'quit' >&${COPROC[1]}
+	cat <&${COPROC[0]} >> ${BLUETOOTH_LOG_FILE}
+	#Get available Devices from log#
+	grep -o "Device ..:..:..:..:..:.." ${BLUETOOTH_LOG_FILE} | cut -d' ' -f2 >> ${BTDEVICES}
+	#Try to pair with available devices#
+	while read devs; 
+	do
+		coproc bluetoothctl
+		echo -e "trust $devs" >&${COPROC[1]}
+		sleep 1
+		echo -e "pair $devs" >&${COPROC[1]}
+		sleep 10
+		echo -e "yes" >&${COPROC[1]}
+		sleep 1
+		echo -e "connect $devs" >&${COPROC[1]}
+		sleep 1
+		echo -e "quit" >&${COPROC[1]}
+		cat <&${COPROC[0]} >> ${BLUETOOTH_LOG_FILE}
+		msg=$(grep -o "Connected" ${BLUETOOTH_LOG_FILE})
+		#Check if the device connected successfully#
+		if [ "$msg" = "Connected" ] 
+		then
+			espeak "Bluetooth device connected" --stdout | aplay
+			echo "$devs" >> ${BLUETOOTH_AVAILABLE}
+			msg=$""
+			#Making sure the device is not disconnected#
+			while [ -z "$msg" ] ;
+			do
+				rm ${BLUETOOTH_LOG_FILE}
+				coproc bluetoothctl
+				echo -e "info" >&${COPROC[1]}
+				echo -e "quit" >&${COPROC[1]}
+				cat <&${COPROC[0]} >> ${BLUETOOTH_LOG_FILE}
+				sleep 1
+				msg=$(grep -o "Missing device address argument" ${BLUETOOTH_LOG_FILE})
+				if [ "$msg" ] 
+				then
+					espeak "Bluetooth device disconnected" --stdout | aplay
+					echo "0" > ${BLUETOOTH_AVAILABLE}
+					break 
+				else
+					#BT device is still connected#
+					continue
+				fi
+			done
+		fi
+	done <${BTDEVICES}
+	sleep 10
+done

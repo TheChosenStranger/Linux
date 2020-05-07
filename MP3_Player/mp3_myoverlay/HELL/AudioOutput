@@ -1,0 +1,77 @@
+#!/bin/bash
+#File used in the script#
+BLUETOOTH_AVAILABLE_CFG="BTAvail.cfg"
+AUDIO_SOURCE_CFG="AudioSource.cfg"
+#Initializing variables#
+BLUETOOTH_AVAILABLE="0"
+HDMI_AVAILABLE="0"
+JACK_AVAILABLE="0"
+#PLAYBACK_DEV indicates the device to be used as output#
+#No device-> 0 / JACK -> 1 / HDMI -> 2 / BLUETOOTH -> 3#
+PLAYBACK_DEV="0"
+PLAYBACK_DEV_OLD="0"
+echo $PLAYBACK_DEV > ${AUDIO_SOURCE_CFG}
+while true
+do
+	# Get the BT status	0 for no device / XX:XX:XX:XX:XX:XX for a device connected
+	test -f ${BLUETOOTH_AVAILABLE_CFG} && BLUETOOTH_AVAILABLE=$(cat ${BLUETOOTH_AVAILABLE_CFG})
+
+	# Get the HDMI status
+	HDMI_STATE="$(tvservice -s | sed "s/^.*\[\([^ ]*\) .*$/\1/" )"
+	# Check if it is HDMI is connected
+	if [ "$HDMI_STATE" != "HDMI" ]
+	then
+	    HDMI_AVAILABLE="0"
+	else
+	    HDMI_AVAILABLE="1"
+	fi
+
+	# Get the Jack status
+	#???????????????!@#@#$@#!!@!@# Always available
+		JACK_AVAILABLE="1"
+
+	#Check for available devices by priority
+	if [ "$BLUETOOTH_AVAILABLE" != "0" ]
+	then
+		PLAYBACK_DEV="3"
+		#CHECK IF THE BT WAS ALREADY USED THEN NO CHANGE NEEDED
+		if [ "$PLAYBACK_DEV" != "$PLAYBACK_DEV_OLD" ]
+		then
+			amixer cset numid=3 0
+			espeak "Bluetooth is now the audio output" --stdout | aplay
+			echo $PLAYBACK_DEV > ${AUDIO_SOURCE_CFG}
+		fi
+	elif [ "$HDMI_AVAILABLE" = "1" ]
+	then
+		PLAYBACK_DEV="2"
+		#CHECK IF THE HDMI WAS ALREADY USED THEN NO CHANGE NEEDED
+		if [ "$PLAYBACK_DEV" != "$PLAYBACK_DEV_OLD" ]
+		then
+			amixer cset numid=3 2
+			espeak "HDMI is now the audio output" --stdout | aplay
+			echo $PLAYBACK_DEV > ${AUDIO_SOURCE_CFG}
+		fi
+	elif [ "$JACK_AVAILABLE" = "1" ]
+	then
+		PLAYBACK_DEV="1"
+		#CHECK IF THE JACK WAS ALREADY USED THEN NO CHANGE NEEDED
+		if [ "$PLAYBACK_DEV" != "$PLAYBACK_DEV_OLD" ]
+		then
+			amixer cset numid=3 1
+			espeak "Audio jack is now the audio output" --stdout | aplay
+			echo $PLAYBACK_DEV > ${AUDIO_SOURCE_CFG}
+		fi
+	else
+		PLAYBACK_DEV="0"
+		killall -STOP  mpg123
+		killall -STOP  aplay
+		#CHECK IF THE NONE WAS ALREADY USED THEN NO CHANGE NEEDED
+		if [ "$PLAYBACK_DEV" != "$PLAYBACK_DEV_OLD" ]
+		then
+			espeak "No audio output device connected" --stdout | aplay
+			echo $PLAYBACK_DEV > ${AUDIO_SOURCE_CFG}
+		fi
+	fi
+	PLAYBACK_DEV_OLD=$PLAYBACK_DEV
+	sleep 5
+done

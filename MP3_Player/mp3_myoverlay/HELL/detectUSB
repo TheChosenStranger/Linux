@@ -1,0 +1,93 @@
+#!/bin/sh
+
+no_of_songs_system=$(find / -name "*.mp3" | wc -l)
+echo $no_of_songs_system
+
+espeak "You have $no_of_songs_system mp3 songs on SD Card of Raspberry pi" --stdout | aplay
+
+search1=0
+counter=0
+search2=0
+USBFlag=0
+searchflag=0
+devcounter=0
+partaionSize=0
+
+if [ ! -f /root/HELL/Notify.conf ] ; then # check if flag file has created before
+    touch /root/HELL/Notify.conf
+    chmod 777 /root/HELL/Notify.conf
+    echo "FLAG=0" > /root/HELL/Notify.conf
+fi
+
+while true; do
+sleep 1
+
+search=$(find /dev/ -name sd*)
+   if  [[  -z $search  ]] ; then 
+	echo "no USB Found"
+	search1=0
+	search2=0                                                                                                           
+             unwantedDir=$(ls /media)
+	     if ! [ $unwantedDir == '']
+		then 
+	     espeak "$unwantedDir disconnected" --stdout | aplay
+	     umount /media/$unwantedDir
+	     rmdir /media/$unwantedDir
+	     fi 
+	if [[  $USBFlag  -eq 1 ]] ; then
+		echo "FLAG=1" >  /root/HELL/Notify.conf
+		USBFlag=0 
+	fi
+   else #something now is connected
+	if [  "$counter" -eq 1 ] ; then
+        	counter=0
+       		search1=$search
+	else
+       		counter=1
+        	search2=$search
+	fi
+	partaionSize=0
+	echo search one = $search1
+	echo search two = $search2
+	if ! [  "$search1" == "$search2"  ] ; then # a change happens  
+     		echo something happened ! 
+		partitions="$(fdisk -l /dev/sd* | grep -v 'Unknown' | grep -v 'Empty' | awk '/^\/dev\/sd/ {print $1}')"
+      	    for partition in $partitions; do
+	  		#echo $partition
+          		mountpoint="/media/$(basename $partition)"
+          		mkdir -p $mountpoint
+          		mount $partition $mountpoint
+			no_of_songs_media=$(find $mountpoint -name "*.mp3" | wc -l)
+			type="$(fdisk -l /dev/sd* | grep -v 'Unknown' | grep -v 'Empty' | awk '/^\/dev\/sd/ {print $11}')"
+			#echo $type
+			size="$(fdisk -l /dev/sd* | grep -v 'Unknown' | grep -v 'Empty' | awk '/^\/dev\/sd/ {print $8}')"
+			#echo $size	
+			espeak " $no_of_songs_media mp3 songs Found on USB " --stdout | aplay
+			#echo " $no_of_songs_media mp3 songs Found on USB "
+        		espeak "it's type is $type and it's size is $size" --stdout | aplay 
+			#echo "it's type is $type and it's size is $size"
+        		echo "FLAG=1" > /root/HELL/Notify.conf
+			USBFlag=1
+			partaionSize=$(($partaionSize+1))
+		done
+		echo $partaionSize
+	   folders=$(ls /media/ )
+	   for folder in $folders ; do
+		for partition in $partitions ; do
+			if ! [ "$folder" == $(basename $partition) ] ; then
+				devcounter=$(($devcounter+1))
+			fi
+
+		done
+
+		if [ "$devcounter" == "$partaionSize" ]	; then
+			espeak "$folder disconnected" --stdout | aplay
+			umount /media/$folder		
+			rmdir /media/$folder
+		fi
+		devcounter=0
+	done		                                                                                              
+    fi
+                                                                                                    
+  fi
+done

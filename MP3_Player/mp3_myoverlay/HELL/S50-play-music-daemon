@@ -1,0 +1,33 @@
+#!/bin/sh
+
+DAEMON1="/root/HELL/playmusic-daemon"
+DAEMON2="/root/HELL/detectUSB"
+DAEMON3="/root/HELL/Bluetooth"
+DAEMON4="/root/HELL/AudioOutput"
+
+test -f ${DAEMON1} || exit 0
+test -f ${DAEMON2} || exit 0
+test -f ${DAEMON3} || exit 0
+test -f ${DAEMON4} || exit 0
+
+
+startdaemon1(){
+  start-stop-daemon -b --start --quiet --exec ${DAEMON1}
+}
+
+startdaemon2(){
+  start-stop-daemon -b --start --quiet --exec ${DAEMON2}
+}
+
+startdaemon3(){
+  start-stop-daemon -b --start --quiet --exec ${DAEMON3}
+}
+startdaemon4(){
+  start-stop-daemon -b --start --quiet --exec ${DAEMON4}
+}
+
+sleep 5
+startdaemon4
+startdaemon3
+startdaemon2
+startdaemon1

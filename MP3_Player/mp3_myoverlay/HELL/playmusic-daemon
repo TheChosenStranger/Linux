@@ -1,0 +1,260 @@
+#!/bin/bash
+
+set -e
+#sudo modprobe snd-bcm2835 #This will wire up the sound card with alsa
+
+PLAYER="/"
+test -d ${PLAYER} || exit 1
+
+
+#commands are : 
+#	1 ==> play
+#	2 ==> pause
+#	3 ==> next
+#	4 ==> prev
+#	5 ==> shuffle
+if [ ! -f  /root/HELL/commands.conf ] ; then # check if commands file has created before
+    touch  /root/HELL/commands.conf
+    chmod 777  /root/HELL/commands.conf
+    echo "commands=0" >  /root/HELL/commands.conf
+fi
+
+# notification file
+#FlAG options are : 
+#	1 ==> new disk is inserted 
+if [ ! -f  /root/HELL/Notify.conf ] ; then # check if not exists
+    echo "FLAG=0" > /root/HELL/Notify.conf
+    chmod 777 /root/HELL/Notify.conf
+fi
+
+#Creating some global variables
+i=0
+curser=0
+button_state=0
+FirstTimeFlag=0
+PlayingFlag=0
+time=$(date +%s)
+prev=$(date +%s)
+readbluetoohCFG=0
+bluetoothFlag=0
+timecounter=0
+playcommand="mpg123"
+
+audioOutput=0
+
+
+
+#This Function creates and updates the whole songs database in the systems 
+updateSongsArray(){
+	arr=()
+	i=0
+	while IFS= read -r var
+	do 
+  		i=$[ $i +1 ]
+  		arr+=($var)
+	done <<< $(find $PLAYER -iname "*.mp3") 
+	Max=$[$i -1]
+	Min=0
+	if [ $curser -gt $Max ] ; then
+		curser=0
+		sudo killall -KILL $playcommand 2>/dev/null
+		PlayingFlag=0
+		FirstTimeFlag=0
+		button_state=0
+	fi
+	if [ $i -eq 0 ] ; then
+        	wall -n "No .MP3 files found" 
+	fi
+}
+
+#Initial Creation of the songs database
+updateSongsArray
+
+# Pause/Play PushButton intialization
+if [ ! -d /sys/class/gpio/gpio17 ] ; then # check if export process has done before
+    echo "17" > /sys/class/gpio/export
+    echo "in" > /sys/class/gpio/gpio17/direction
+fi
+
+# Next PushButton intialization
+if [ ! -d /sys/class/gpio/gpio27 ] ; then # check if export process has done before
+    echo "27" > /sys/class/gpio/export
+    echo "in" > /sys/class/gpio/gpio27/direction
+fi
+
+# Rewind PushButton intialization
+if [ ! -d /sys/class/gpio/gpio22 ] ; then # check if export process has done before
+    echo "22" > /sys/class/gpio/export
+    echo "in" > /sys/class/gpio/gpio22/direction
+fi
+
+# Shuffel PushButton intialization
+if [ ! -d /sys/class/gpio/gpio5 ] ; then # check if export process has done before
+    echo "5" > /sys/class/gpio/export
+    echo "in" > /sys/class/gpio/gpio5/direction
+fi
+
+
+while true; do
+  #extern in this file the FlAG variable
+  source /root/HELL/Notify.conf
+  #extern in this file the commands variable
+  source /root/HELL/commands.conf
+  audioOutput=$(cat /root/HELL/AudioSource.cfg)
+  sleep 0.2
+# Check if there's a bluetooth deveice connected
+  readbluetoohCFG=$(cat /root/HELL/BTAvail.cfg)
+# Check its mac address
+  if [ $readbluetoohCFG -ne 0 ] ; then
+	bluetoothFlag=1
+	playcommand="mpg123"
+  else
+	bluetoothFlag=0
+	playcommand="mpg123"
+  fi
+# to update the console every five second 
+  timecounter=$[ $timecounter +1 ]
+# check if it's been more than 5 sec
+ if [ $timecounter -gt 25 ] ; then
+	timecounter=0
+	 if [  $FirstTimeFlag  -eq 0 ] ; then
+        	wall -n "Nothing is played right now"
+        elif [ $PlayingFlag -eq 0 ] ; then
+                wall -n "   MP3 Paused >  ${arr[$curser]}"
+        else
+		if [ $audioOutput == 1 ] ; then
+              	  	wall -n " MP3 Playing > ${arr[$curser]} Via Audio Jack"
+		elif [ $audioOutput == 2 ] ; then
+              	  	wall -n " MP3 Playing > ${arr[$curser]} Via HDMI"
+		elif [ $audioOutput == 3 ] ; then
+                	wall -n " MP3 Playing > ${arr[$curser]} Via Bluetooth Device"
+		fi
+        fi
+  fi
+# Check if there's a new disk inserted and update the database
+  if [[  $FLAG -eq 1  ]] ; then 
+    updateSongsArray
+    echo "FLAG=0" > /root/HELL/Notify.conf
+  fi
+ 
+# if anyone pushed the button ==> toggle or command play was entered on the terminal
+  if  [ $(cat /sys/class/gpio/gpio17/value) -eq 1 -o $commands -eq 1 -o $commands -eq 2 ]  ; then
+    	if [ $FirstTimeFlag -eq 0 -a $commands -ne 2 ] ; then
+# Choose weather to play on the bluetooth output or other outputs 
+      		if [ $bluetoothFlag -eq 1 ] ; then 
+			mpg123 -D bluealsa:DEV=$readbluetoohCFG,PROFILE=a2dp,HCI=hci0 ${arr[@]:$curser} 2>/dev/null
+      		else
+			mpg123 ${arr[@]:$curser} &  2>/dev/null
+      		fi
+      		FirstTimeFlag=1
+      		button_state=1
+      		PlayingFlag=1
+      		sleep 0.2
+      		continue
+        fi
+# Check if state of the button to toggle between playing and pausing
+	if [ $button_state -eq 0 -o $commands -eq 1 ]
+	then
+		killall -CONT $playcommand  2>/dev/null
+		PlayingFlag=1
+		button_state=1
+		sleep 0.2
+	elif [ $button_state -eq 1 -o $commands -eq 2 ]
+	then
+		killall -STOP  $playcommand  2>/dev/null
+		PlayingFlag=0
+		button_state=0
+		sleep 0.2 # to allow finger release
+	fi
+	echo "commands=0" > /root/HELL/commands.conf
+  fi
+
+# if anyone pushed the button ==> next or command next was entered on the terminal
+  if [ $(cat /sys/class/gpio/gpio27/value) -eq 1 -o $commands -eq 3 ] ; then #next
+	if [ $PlayingFlag -eq 1 ] ; then 
+		 
+        		sudo killall -KILL $playcommand  2>/dev/null
+        		sleep 0.2
+        		curser=$[ $curser +1 ]
+			if [ $curser -gt $Max ] ; then 
+				curser=0
+			fi
+# Choose weather to play on the bluetooth output or other outputs 
+      			if [ $bluetoothFlag -eq 1 ] ; then 
+				mpg123 -D bluealsa:DEV=$readbluetoohCFG,PROFILE=a2dp,HCI=hci0 ${arr[@]:$curser}  2>/dev/null
+			else
+				mpg123 ${arr[@]:$curser} &  2>/dev/null
+			fi
+      		
+  	fi
+	echo "commands=0" > /root/HELL/commands.conf
+  fi
+
+# if anyone pushed the button ==> prev or command prev was entered on the terminal
+  if [ $(cat /sys/class/gpio/gpio22/value) -eq 1  ] ; then #prev
+	time=$(date +%s)
+	if [ $PlayingFlag -eq 1 ] ; then 
+		if ! [ "$time" == "$prev" ] ; then
+			sudo killall -KILL $playcommand  2>/dev/null
+			sleep 0.2
+# Choose weather to play on the bluetooth output or other outputs 
+      	        if [ $bluetoothFlag -eq 1 ] ; then 
+			mpg123 -D bluealsa:DEV=$readbluetoohCFG,PROFILE=a2dp,HCI=hci0 ${arr[@]:$curser}  2>/dev/null
+      		else
+			mpg123 ${arr[@]:$curser} &  2>/dev/null
+      		fi
+	else
+			sudo killall -KILL $playcommand  2>/dev/null
+        		sleep 0.2
+        		curser=$[ $curser -1 ]
+			if [ $curser < $Min ] ; then
+				curser=0
+			fi
+# Choose weather to play on the bluetooth output or other outputs 
+      			if [ $bluetoothFlag -eq 1 ] ; then 
+				mpg123 -D bluealsa:DEV=$readbluetoohCFG,PROFILE=a2dp,HCI=hci0 ${arr[@]:$curser}  2>/dev/null
+      			else
+				mpg123 ${arr[@]:$curser} &  2>/dev/null
+      			fi
+ 
+      	   fi
+    fi
+   perv=$(date +%s)
+  fi 
+
+# if anyone pushed the button ==> Shuffel or command Shuffel was entered on the terminal
+  if [ $(cat /sys/class/gpio/gpio5/value) -eq 1 -o $commands -eq 5 ] ; then #Shuffel
+	sudo killall -KILL $playcommand  2>/dev/null
+        sleep 0.2
+        curser=$(shuf -i $Min-$Max -n 1)
+        #Choose weather to play on the bluetooth output or other outputs 
+      	if [ $bluetoothFlag -eq 1 ] ; then 
+			mpg123 -D bluealsa:DEV=$readbluetoohCFG,PROFILE=a2dp,HCI=hci0 ${arr[@]:$curser}  2>/dev/null
+      	else
+			mpg123 ${arr[@]:$curser} &  2>/dev/null
+      	fi
+ 	echo "commands=0" > /root/HELL/commands.conf
+  fi
+
+# if command prev was entered on the terminal
+ if [ $commands -eq 4 ] ; then
+	 if [ $PlayingFlag -eq 1 ] ; then
+		
+	 		sudo killall -KILL $playcommand  2>/dev/null
+         		sleep 0.2
+         		curser=$[ $curser -1 ]
+			if [ $curser < $Min ] ; then 
+				curser=0
+			fi
+#Choose weather to play on the bluetooth output or other outputs 
+	      		if [ $bluetoothFlag -eq 1 ] ; then 
+				mpg123 -D bluealsa:DEV=$readbluetoohCFG,PROFILE=a2dp,HCI=hci0 ${arr[@]:$curser}  2>/dev/null
+	      		else
+				mpg123 ${arr[@]:$curser} &  2>/dev/null
+	 	     	fi
+		
+         fi 
+	echo "commands=0" > /root/HELL/commands.conf
+ fi
+
+done

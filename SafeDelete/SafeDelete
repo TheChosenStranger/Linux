@@ -1,0 +1,106 @@
+#!/bin/bash
+
+function file_compress
+{
+	if [ -f $current_file ] 
+		then
+		gzip $1
+		move_to_trash	$1".gz"
+	elif	[ -d $current_file ]
+		then
+		gzip -r $1
+		tar -zcvf $1".gz" $1
+		move_to_trash	$1".gz"
+		rm -r $1
+	fi
+}
+
+function move_to_trash
+{
+	mv $1 ~/TRASH
+}
+
+function files_type
+{
+	for current_file in "$@"
+	do
+	if  file "$current_file" | grep -q "archive" 
+		then
+		move_to_trash $current_file
+	elif file "$current_file" | grep -q "compress"
+		then
+		move_to_trash $current_file
+	else
+		file_compress $current_file
+	fi	
+	done
+	clear
+	echo $@ "Compressed and Moved to trash successfully"
+}
+
+function files_check
+{
+	exist="1"
+	for current_file in "$@"
+	do
+		if [ -f $current_file ] || [ -d $current_file ]
+			then
+			continue
+		else
+			echo "$current_file no such file or directory"
+			exist="0"			
+			break
+		fi	
+	done
+		
+	if [ $exist -eq 1 ]
+		then
+		files_type $@
+	fi	
+}
+
+function input_check
+{
+	if [ $# == 0 ]
+	then
+	echo 'No file(s) selected, please use SafeDelete <file1> <file2> ..... .'
+elif [ $# > 0 ]
+	then
+	files_check $@
+fi
+}
+
+function trash_clean
+{
+	two_days_in_secs="172800"
+	for files in ~/TRASH/*
+		do
+		last_modification="$(stat -c %Y $files)"
+		time_now="$(date +%s)"
+		let age="${time_now}-${last_modification}"
+		if [ $age -ge $two_days_in_secs ]
+			then		
+			rm $files
+		fi
+	done
+	input_check $@
+}
+
+function trash_check
+{
+	dir=$(pwd)
+	cd ~
+	if  ! [ -d "TRASH" ] 
+		then			
+		mkdir TRASH
+		echo "Trash folder created"
+	fi
+	cd $dir
+	trash_clean $@
+}
+#Creating a crontab job if not already existing
+if ! crontab -l | grep -q "./SafeDelete"
+	then
+	(crontab -l 2>/dev/null; echo "0 */2 * * * ./SafeDelete -with args") | crontab -
+fi
+trash_check $@

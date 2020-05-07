@@ -1,0 +1,2 @@
+A simple Bash script that deletes files in a safe way by compressing them and then
+add them to a trash file and after a while they are removed completely

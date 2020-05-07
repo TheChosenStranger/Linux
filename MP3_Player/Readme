@@ -1,0 +1,4 @@
+This is an mp3 player using rasbperry pi 3 and buildroot
+- play any mp3 file either in the SD card of a flash drive
+- Audio through (audio jack - HDMI - Bluetooth)
+- ssh throught (Ethernet - Wifi)

@@ -3,6 +3,15 @@
 This project is a handheld gaming console for retro-gaming on Raspberry Pi.\
 It also contains a media centre for watching Movies/ Playing music ..etc
 
+## System Overview
+
+The game console is based on 2 units of control:
+
+1. The secondary controller, which acts as a gamepad (Here we used Arduino Leonardo, an alternative would be Arduino Micro).\
+2. The main controller, which acts as a game emulator (Here we used Raspberry Pi).
+
+![BlockDiagram](../../media/ConsoleMedia/GameConsole_BlockDiagram.png)
+
 ## Tutorial
 
 **Preparing Raspberry Pi Image**
@@ -18,8 +27,8 @@ Installing the image is straightforward:\
 
 **Note**: You can use lsblk -p to discover the SD card name for using as of in the command above. (this name should be /dev/mmcblk0 or /dev/sdX)
 
-Now, we need to edit some configurations (Enable WiFi, Setup Kodi).
-3. Connect your Pi to a HDMI screen, and any input device to control (Keyboard, mouse, gamepad ..), then boot.
+Now, we need to edit some configurations (Enable WiFi, Setup Kodi).\
+3. Connect your Pi to a HDMI screen, and any input device to control (Keyboard, mouse, gamepad ..), then boot.\
 4. Use any of the methods mentioned [here](https://retropie.org.uk/docs/Wifi/) to enable WiFi connection.
 
 **Note**: You can edit /etc/network/interfaces file to add a static IP for your wifi (to use ssh for example).\

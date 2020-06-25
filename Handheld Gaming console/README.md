@@ -47,7 +47,10 @@ and add an image that supports Kodi (LibreELEC for example, or a customized imag
 
 **Using Arduino as a Gamepad**
 
-To be added later.
+For this purpose, [Joystick library](https://github.com/MHeironimus/ArduinoJoystickLibrary) was used.
+The gamepad also supports tilt control. So, we used a gyroscope and [Adafruit_MPU6050 library](https://github.com/adafruit/Adafruit_MPU6050) and [Adafruit_Sensor library](https://github.com/adafruit/Adafruit_Sensor).
+
+The idea is simple, a switch is used to turn on/off tilt control. When turned on, Arduino will read left/right acceleration and send normal left/right button signal to the Raspberry Pi.
 
 **Assembling Hardware**
 

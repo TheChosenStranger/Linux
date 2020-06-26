@@ -31,7 +31,7 @@ Installing the image is straightforward:\
 
 Now, we need to edit some configurations (Enable WiFi, Setup Kodi).
 
-3. Connect your Pi to a HDMI screen, and any input device to control (Keyboard, mouse, gamepad ..), then boot.\
+3. Connect your Pi to a HDMI screen, and any input device to control (Keyboard, mouse, gamepad ..), then boot.
 4. Use any of the methods mentioned [here](https://retropie.org.uk/docs/Wifi/) to enable WiFi connection.
 
 **Note**: You can edit /etc/network/interfaces file to add a static IP for your wifi (to use ssh for example).\
@@ -48,10 +48,20 @@ and add an image that supports Kodi (LibreELEC for example, or a customized imag
 **Using Arduino as a Gamepad**
 
 For this purpose, [Joystick library](https://github.com/MHeironimus/ArduinoJoystickLibrary) was used.
-The gamepad also supports tilt control. So, we used a gyroscope and [Adafruit_MPU6050 library](https://github.com/adafruit/Adafruit_MPU6050) and [Adafruit_Sensor library](https://github.com/adafruit/Adafruit_Sensor).
+The gamepad also supports tilt control. So, we used a gyroscope with [Adafruit_MPU6050 library](https://github.com/adafruit/Adafruit_MPU6050) and [Adafruit_Sensor library](https://github.com/adafruit/Adafruit_Sensor).
 
 The idea is simple, a switch is used to turn on/off tilt control. When turned on, Arduino will read left/right acceleration and send normal left/right button signal to the Raspberry Pi.
 
 **Assembling Hardware**
 
-To be added later.
+*Automatic Audio Redirection*
+
+The console has built-in speakers, and an external audio jack for the user.\
+To switch off the built-in speakers when headphones are attached, we used the following circuit:
+
+Circuit image will be added.
+
+*Case*
+
+The **Hardware Design** folder contains files for 3D printing. Both faces (Top and Down) are divided into 2 parts that should be joined together.\
+It is greatly recommended to use heat sinks for the Pi and position it to face the fan.

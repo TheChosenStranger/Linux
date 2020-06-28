@@ -59,7 +59,7 @@ The idea is simple, a switch is used to turn on/off tilt control. When turned on
 The console has built-in speakers, and an external audio jack for the user.\
 To switch off the built-in speakers when headphones are attached, we used the following circuit:
 
-![Audio Circuit](C:\Users\Moustafa Ghareeb\Desktop\Sound.jpg)
+![Audio Circuit](../../media/ConsoleMedia/Sound.jpg)
 
 *Case*
 
